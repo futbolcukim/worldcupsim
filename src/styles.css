@@ -190,7 +190,8 @@ input {
 .hero-icon svg,
 .champion-card__icon svg,
 .button svg,
-.team-row__grip svg {
+.team-row__grip svg,
+.team-row__shift svg {
   width: 1.35rem;
   height: 1.35rem;
   fill: currentColor;
@@ -435,6 +436,12 @@ input {
   user-select: none;
 }
 
+.team-row--dragging {
+  box-shadow: 0 22px 34px rgba(0, 0, 0, 0.24);
+  border-color: rgba(235, 193, 91, 0.24);
+  background: rgba(18, 46, 35, 0.95);
+}
+
 .team-row:hover {
   transform: translateY(-1px);
   border-color: rgba(25, 169, 104, 0.28);
@@ -490,6 +497,37 @@ input {
 
 .team-row__name {
   font-weight: 600;
+  flex: 1;
+}
+
+.team-row__fallback {
+  display: none;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.team-row__shift {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.95rem;
+  height: 1.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.team-row__shift:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+.team-row__shift:not(:disabled):hover {
+  border-color: rgba(235, 193, 91, 0.28);
+  color: var(--gold);
 }
 
 .knockout-section + .knockout-section {
@@ -744,5 +782,9 @@ input {
 
   .champion-card h3 {
     font-size: clamp(2rem, 12vw, 3rem);
+  }
+
+  .team-row__fallback {
+    display: inline-flex;
   }
 }

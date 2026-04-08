@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   closestCenter,
   DndContext,
+  DragOverlay,
   PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
+  type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -218,14 +220,40 @@ function IconGrip() {
   );
 }
 
+function IconChevronUp() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 8.1 5.6 14.5l1.4 1.4 5-5 5 5 1.4-1.4L12 8.1Z" />
+    </svg>
+  );
+}
+
+function IconChevronDown() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m7 8.5-1.4 1.4 6.4 6.4 6.4-6.4L17 8.5l-5 5-5-5Z" />
+    </svg>
+  );
+}
+
 function TeamRow({
   team,
   index,
+  isOverlay = false,
+  canMoveUp = false,
+  canMoveDown = false,
+  onMoveUp,
+  onMoveDown,
 }: {
   team: string;
   index: number;
+  isOverlay?: boolean;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: team });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: team, disabled: isOverlay });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -236,7 +264,7 @@ function TeamRow({
     <div
       ref={setNodeRef}
       style={style}
-      className="team-row"
+      className={`team-row${isDragging || isOverlay ? " team-row--dragging" : ""}`}
     >
       <div className="team-row__main">
         <span className="team-row__flag" aria-hidden="true">
@@ -252,6 +280,14 @@ function TeamRow({
         </span>
         <span className="team-row__badge">{index + 1}</span>
         <span className="team-row__name">{team}</span>
+        <div className="team-row__fallback" aria-label={`${team} sıralama kontrolleri`}>
+          <button type="button" className="team-row__shift" onClick={onMoveUp} disabled={!canMoveUp}>
+            <IconChevronUp />
+          </button>
+          <button type="button" className="team-row__shift" onClick={onMoveDown} disabled={!canMoveDown}>
+            <IconChevronDown />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -319,6 +355,7 @@ export default function App() {
   const [finalWinner, setFinalWinner] = useState("");
   const [shareUrl, setShareUrl] = useState("");
   const [copied, setCopied] = useState(false);
+  const [activeDragTeam, setActiveDragTeam] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -327,8 +364,8 @@ export default function App() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 180,
-        tolerance: 8,
+        delay: 220,
+        tolerance: 10,
       },
     })
   );
@@ -476,13 +513,40 @@ export default function App() {
     });
   };
 
+  const moveTeamByOffset = (groupKey: string, teamId: string, offset: -1 | 1) => {
+    setGroups((current) => {
+      const teams = [...current[groupKey]];
+      const index = teams.indexOf(teamId);
+      const nextIndex = index + offset;
+
+      if (index === -1 || nextIndex < 0 || nextIndex >= teams.length) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [groupKey]: arrayMove(teams, index, nextIndex),
+      };
+    });
+  };
+
+  const handleGroupDragStart = (event: DragStartEvent) => {
+    setActiveDragTeam(String(event.active.id));
+  };
+
   const handleGroupDragEnd = (groupKey: string, event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveDragTeam(null);
+
     if (!over) {
       return;
     }
 
     moveTeam(groupKey, String(active.id), String(over.id));
+  };
+
+  const handleGroupDragCancel = () => {
+    setActiveDragTeam(null);
   };
 
   const saveProgress = () => {
@@ -629,15 +693,28 @@ export default function App() {
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
+                  onDragStart={handleGroupDragStart}
                   onDragEnd={(event) => handleGroupDragEnd(group, event)}
+                  onDragCancel={handleGroupDragCancel}
                 >
                   <SortableContext items={teams} strategy={verticalListSortingStrategy}>
                     <div className="group-list">
                       {teams.map((team, index) => (
-                        <TeamRow key={`${group}-${team}`} team={team} index={index} />
+                        <TeamRow
+                          key={`${group}-${team}`}
+                          team={team}
+                          index={index}
+                          canMoveUp={index > 0}
+                          canMoveDown={index < teams.length - 1}
+                          onMoveUp={() => moveTeamByOffset(group, team, -1)}
+                          onMoveDown={() => moveTeamByOffset(group, team, 1)}
+                        />
                       ))}
                     </div>
                   </SortableContext>
+                  <DragOverlay>
+                    {activeDragTeam ? <TeamRow team={activeDragTeam} index={teams.indexOf(activeDragTeam)} isOverlay /> : null}
+                  </DragOverlay>
                 </DndContext>
               </article>
             ))}
