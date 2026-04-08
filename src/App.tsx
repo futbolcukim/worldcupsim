@@ -1,4 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  closestCenter,
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type Groups = Record<string, string[]>;
 type WinnerMap = Record<string, string>;
@@ -210,32 +221,33 @@ function IconGrip() {
 function TeamRow({
   team,
   index,
-  onDragStart,
-  onDragOver,
-  onDrop,
 }: {
   team: string;
   index: number;
-  onDragStart: (team: string) => void;
-  onDragOver: () => void;
-  onDrop: (team: string) => void;
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: team });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       className="team-row"
-      draggable
-      onDragStart={() => onDragStart(team)}
-      onDragOver={(event) => {
-        event.preventDefault();
-        onDragOver();
-      }}
-      onDrop={() => onDrop(team)}
     >
       <div className="team-row__main">
         <span className="team-row__flag" aria-hidden="true">
           {getFlag(team)}
         </span>
-        <span className="team-row__grip" aria-hidden="true">
+        <span
+          className={`team-row__grip${isDragging ? " team-row__grip--active" : ""}`}
+          aria-hidden="true"
+          {...attributes}
+          {...listeners}
+        >
           <IconGrip />
         </span>
         <span className="team-row__badge">{index + 1}</span>
@@ -306,8 +318,20 @@ export default function App() {
   const [semiWinners, setSemiWinners] = useState<WinnerMap>({});
   const [finalWinner, setFinalWinner] = useState("");
   const [shareUrl, setShareUrl] = useState("");
-  const [draggedTeam, setDraggedTeam] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 180,
+        tolerance: 8,
+      },
+    })
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -445,14 +469,20 @@ export default function App() {
         return current;
       }
 
-      const [moved] = teams.splice(from, 1);
-      teams.splice(to, 0, moved);
-
       return {
         ...current,
-        [groupKey]: teams,
+        [groupKey]: arrayMove(teams, from, to),
       };
     });
+  };
+
+  const handleGroupDragEnd = (groupKey: string, event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) {
+      return;
+    }
+
+    moveTeam(groupKey, String(active.id), String(over.id));
   };
 
   const saveProgress = () => {
@@ -596,23 +626,19 @@ export default function App() {
                   </div>
                   <span className="pill pill--soft">İlk 2 direkt</span>
                 </header>
-                <div className="group-list">
-                  {teams.map((team, index) => (
-                    <TeamRow
-                      key={`${group}-${team}`}
-                      team={team}
-                      index={index}
-                      onDragStart={(teamName) => setDraggedTeam(teamName)}
-                      onDragOver={() => undefined}
-                      onDrop={(overTeam) => {
-                        if (draggedTeam) {
-                          moveTeam(group, draggedTeam, overTeam);
-                        }
-                        setDraggedTeam(null);
-                      }}
-                    />
-                  ))}
-                </div>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event) => handleGroupDragEnd(group, event)}
+                >
+                  <SortableContext items={teams} strategy={verticalListSortingStrategy}>
+                    <div className="group-list">
+                      {teams.map((team, index) => (
+                        <TeamRow key={`${group}-${team}`} team={team} index={index} />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               </article>
             ))}
           </div>

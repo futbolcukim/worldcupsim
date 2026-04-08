@@ -417,6 +417,7 @@ input {
 .group-list {
   display: grid;
   gap: 0.75rem;
+  touch-action: pan-y;
 }
 
 .team-row {
@@ -425,12 +426,13 @@ input {
   padding: 0.95rem;
   background: rgba(255, 255, 255, 0.035);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
-  cursor: grab;
+  cursor: default;
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,
     border-color 0.2s ease,
     background 0.2s ease;
+  user-select: none;
 }
 
 .team-row:hover {
@@ -465,6 +467,12 @@ input {
 .team-row__grip {
   display: inline-flex;
   color: rgba(255, 255, 255, 0.45);
+  cursor: grab;
+  touch-action: none;
+}
+
+.team-row__grip--active {
+  color: var(--gold);
 }
 
 .team-row__badge {
