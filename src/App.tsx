@@ -28,7 +28,67 @@ const initialGroups: Groups = {
   L: ["İngiltere", "Hırvatistan", "Gana", "Panama"],
 };
 
+const DEFAULT_TITLE = "2026 Dünya Kupası Simülatörü";
 const STORAGE_KEY = "world-cup-simulator-2026";
+
+const teamFlags: Record<string, string> = {
+  Meksika: "🇲🇽",
+  "Güney Afrika": "🇿🇦",
+  "Güney Kore": "🇰🇷",
+  Çekya: "🇨🇿",
+  Kanada: "🇨🇦",
+  "Bosna Hersek": "🇧🇦",
+  Katar: "🇶🇦",
+  İsviçre: "🇨🇭",
+  Brezilya: "🇧🇷",
+  Fas: "🇲🇦",
+  Haiti: "🇭🇹",
+  İskoçya: "🏴",
+  Türkiye: "🇹🇷",
+  ABD: "🇺🇸",
+  Paraguay: "🇵🇾",
+  Avustralya: "🇦🇺",
+  Almanya: "🇩🇪",
+  Curaçao: "🇨🇼",
+  "Fildişi Sahili": "🇨🇮",
+  Ekvador: "🇪🇨",
+  Hollanda: "🇳🇱",
+  Japonya: "🇯🇵",
+  İsveç: "🇸🇪",
+  Tunus: "🇹🇳",
+  Belçika: "🇧🇪",
+  Mısır: "🇪🇬",
+  İran: "🇮🇷",
+  "Yeni Zelanda": "🇳🇿",
+  İspanya: "🇪🇸",
+  "Yeşil Burun Adaları": "🇨🇻",
+  "Suudi Arabistan": "🇸🇦",
+  Uruguay: "🇺🇾",
+  Fransa: "🇫🇷",
+  Senegal: "🇸🇳",
+  Irak: "🇮🇶",
+  Norveç: "🇳🇴",
+  Arjantin: "🇦🇷",
+  Cezayir: "🇩🇿",
+  Avusturya: "🇦🇹",
+  Ürdün: "🇯🇴",
+  Portekiz: "🇵🇹",
+  "Demokratik Kongo Cumhuriyeti": "🇨🇩",
+  Özbekistan: "🇺🇿",
+  Kolombiya: "🇨🇴",
+  İngiltere: "🏴",
+  Hırvatistan: "🇭🇷",
+  Gana: "🇬🇭",
+  Panama: "🇵🇦",
+};
+
+function getFlag(team: string) {
+  if (!team || team === "TBD") {
+    return "🏳️";
+  }
+
+  return teamFlags[team] || "🏳️";
+}
 
 function encodeState(value: unknown) {
   const content = JSON.stringify(value);
@@ -172,6 +232,9 @@ function TeamRow({
       onDrop={() => onDrop(team)}
     >
       <div className="team-row__main">
+        <span className="team-row__flag" aria-hidden="true">
+          {getFlag(team)}
+        </span>
         <span className="team-row__grip" aria-hidden="true">
           <IconGrip />
         </span>
@@ -195,7 +258,7 @@ function MatchCard({
   winner: string;
   onPick: (team: string) => void;
 }) {
-  const isLocked = teamA === "TBD" || teamB === "TBD";
+  const isIncomplete = teamA === "TBD" || teamB === "TBD";
 
   return (
     <article className="panel match-card">
@@ -205,19 +268,29 @@ function MatchCard({
       <div className="match-card__body">
         <button
           type="button"
-          disabled={teamA === "TBD" || isLocked}
+          disabled={isIncomplete}
           className={winner === teamA ? "match-pick match-pick--active" : "match-pick"}
           onClick={() => onPick(teamA)}
         >
-          {teamA}
+          <span className="match-pick__content">
+            <span className="match-pick__flag" aria-hidden="true">
+              {getFlag(teamA)}
+            </span>
+            <span>{teamA}</span>
+          </span>
         </button>
         <button
           type="button"
-          disabled={teamB === "TBD" || isLocked}
+          disabled={isIncomplete}
           className={winner === teamB ? "match-pick match-pick--active" : "match-pick"}
           onClick={() => onPick(teamB)}
         >
-          {teamB}
+          <span className="match-pick__content">
+            <span className="match-pick__flag" aria-hidden="true">
+              {getFlag(teamB)}
+            </span>
+            <span>{teamB}</span>
+          </span>
         </button>
       </div>
     </article>
@@ -225,7 +298,7 @@ function MatchCard({
 }
 
 export default function App() {
-  const [title, setTitle] = useState("2026 Dünya Kupası Simülatörü");
+  const [title, setTitle] = useState(DEFAULT_TITLE);
   const [groups, setGroups] = useState<Groups>(initialGroups);
   const [round32Winners, setRound32Winners] = useState<WinnerMap>({});
   const [round16Winners, setRound16Winners] = useState<WinnerMap>({});
@@ -243,7 +316,7 @@ export default function App() {
     if (shared) {
       try {
         const parsed = decodeState(shared);
-        setTitle(parsed.title || "2026 Dünya Kupası Simülatörü");
+        setTitle(parsed.title || DEFAULT_TITLE);
         setGroups(parsed.groups || initialGroups);
         setRound32Winners(parsed.round32Winners || {});
         setRound16Winners(parsed.round16Winners || {});
@@ -263,7 +336,7 @@ export default function App() {
 
     try {
       const parsed = JSON.parse(saved);
-      setTitle(parsed.title || "2026 Dünya Kupası Simülatörü");
+      setTitle(parsed.title || DEFAULT_TITLE);
       setGroups(parsed.groups || initialGroups);
       setRound32Winners(parsed.round32Winners || {});
       setRound16Winners(parsed.round16Winners || {});
@@ -327,6 +400,15 @@ export default function App() {
     ];
   }, [semiMatches]);
 
+  const finalists = useMemo(
+    () => finalMatch.map((slot) => slot.team).filter((team) => team !== "TBD"),
+    [finalMatch]
+  );
+
+  const championName = useMemo(() => {
+    return finalists.includes(finalWinner) ? finalWinner : "";
+  }, [finalWinner, finalists]);
+
   useEffect(() => {
     setRound32Winners((current) => sanitizeWinnerMap(round32Matches, current));
   }, [round32Matches]);
@@ -344,11 +426,10 @@ export default function App() {
   }, [semiMatches]);
 
   useEffect(() => {
-    const finalists = finalMatch.map((slot) => slot.team);
-    if (!finalists.includes(finalWinner)) {
+    if (finalWinner && !finalists.includes(finalWinner)) {
       setFinalWinner("");
     }
-  }, [finalMatch, finalWinner]);
+  }, [finalWinner, finalists]);
 
   const moveTeam = (groupKey: string, activeId: string, overId: string) => {
     if (!activeId || !overId || activeId === overId) {
@@ -392,8 +473,16 @@ export default function App() {
     }
   };
 
+  const handleFinalPick = (team: string) => {
+    if (team === "TBD") {
+      return;
+    }
+
+    setFinalWinner(team);
+  };
+
   const resetAll = () => {
-    setTitle("2026 Dünya Kupası Simülatörü");
+    setTitle(DEFAULT_TITLE);
     setGroups(initialGroups);
     setRound32Winners({});
     setRound16Winners({});
@@ -408,8 +497,9 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <div className="ambient ambient--one" />
-      <div className="ambient ambient--two" />
+      <div className="stadium-glow stadium-glow--left" />
+      <div className="stadium-glow stadium-glow--right" />
+      <div className="pitch-lines" />
       <div className="container">
         <section className="hero-grid">
           <article className="panel hero-card">
@@ -417,9 +507,27 @@ export default function App() {
               <span className="hero-icon">
                 <IconTrophy />
               </span>
-              <div>
-                <p className="eyebrow">Tahmin et, kaydet, paylaş</p>
+              <div className="hero-copy">
+                <p className="eyebrow">Road to the Trophy</p>
                 <h1>{title}</h1>
+                <p className="hero-copy__text">
+                  Grup sıralamalarını kur, eleme ağacını tamamla ve 2026 kupasının nasıl şekilleneceğini kendi senaryonla oluştur.
+                </p>
+              </div>
+            </div>
+
+            <div className="hero-stats">
+              <div className="hero-stat">
+                <span>48</span>
+                <small>Takım</small>
+              </div>
+              <div className="hero-stat">
+                <span>12</span>
+                <small>Grup</small>
+              </div>
+              <div className="hero-stat">
+                <span>32</span>
+                <small>Eleme Slotu</small>
               </div>
             </div>
 
@@ -454,20 +562,27 @@ export default function App() {
 
           <article className="panel info-card">
             <header className="section-header">
-              <h2>Nasıl çalışır?</h2>
+              <h2>Turnuva Akışı</h2>
             </header>
             <div className="info-list">
-              <p>Grup sıralamasını sürükleyerek değiştir.</p>
-              <p>İlk iki takım direkt çıkar, üçüncüler içinden sekiz takım üst tura yükselir.</p>
-              <p>Eleme maçlarında kazananları seç ve şampiyonunu belirle.</p>
-              <p>İlerlemeni kaydet veya tek link ile paylaş.</p>
+              <p>Takımları sürükleyip bırakarak grup sıralamasını gerçek zamanlı yeniden oluştur.</p>
+              <p>Her aşamada sadece geçerli eşleşmeler seçilebilir, böylece eleme akışı temiz kalır.</p>
+              <p>Final seçimin yapıldığında şampiyon kartı büyük biçimde hemen güncellenir.</p>
+            </div>
+            <div className="final-preview">
+              <span className="eyebrow">Finalistler</span>
+              <strong>{finalists.length === 2 ? `${finalists[0]} vs ${finalists[1]}` : "Finalistler henüz hazır değil"}</strong>
+              <p>{championName ? `Şu an kupayı kaldıran takım: ${championName}` : "Şampiyon seçtiğinde bu alan anında güncellenir."}</p>
             </div>
           </article>
         </section>
 
         <section className="section-block">
           <div className="section-title">
-            <h2>Gruplar</h2>
+            <div>
+              <p className="section-kicker">Group Stage</p>
+              <h2>Gruplar</h2>
+            </div>
             <span className="pill">12 Grup • 48 Takım</span>
           </div>
 
@@ -475,7 +590,10 @@ export default function App() {
             {Object.entries(groups).map(([group, teams]) => (
               <article key={group} className="panel group-card">
                 <header className="group-card__header">
-                  <h3>Grup {group}</h3>
+                  <div>
+                    <span className="group-card__label">Pot</span>
+                    <h3>Grup {group}</h3>
+                  </div>
                   <span className="pill pill--soft">İlk 2 direkt</span>
                 </header>
                 <div className="group-list">
@@ -502,7 +620,10 @@ export default function App() {
 
         <section className="section-block">
           <div className="section-title">
-            <h2>Eleme Aşaması</h2>
+            <div>
+              <p className="section-kicker">Knockout Bracket</p>
+              <h2>Eleme Aşaması</h2>
+            </div>
           </div>
 
           <div className="knockout-section">
@@ -577,30 +698,42 @@ export default function App() {
             </div>
           </div>
 
-          <div className="knockout-section">
+          <div className="knockout-section knockout-section--final">
             <div className="stage-header">
               <h3>Final</h3>
             </div>
-            <div className="matches-grid matches-grid--two">
+            <div className="matches-grid matches-grid--final">
               <MatchCard
                 title="Şampiyonluk Maçı"
                 teamA={finalMatch[0].team}
                 teamB={finalMatch[1].team}
-                winner={finalWinner}
-                onPick={(team) => setFinalWinner(team)}
+                winner={championName}
+                onPick={handleFinalPick}
               />
 
-              <article className="panel champion-card">
-                <span className="champion-card__icon">
-                  <IconTrophy />
-                </span>
-                <p className="eyebrow">Tahmini Şampiyon</p>
-                <h3>{finalWinner || "Henüz seçilmedi"}</h3>
+              <article className={`panel champion-card${championName ? " champion-card--selected" : ""}`}>
+                <div className="champion-card__spotlight" />
+                <div className="champion-card__crest">
+                  <span className="champion-card__flag" aria-hidden="true">
+                    {getFlag(championName)}
+                  </span>
+                  <span className="champion-card__icon">
+                    <IconTrophy />
+                  </span>
+                </div>
+                <p className="champion-card__label">🏆 Tahmini Dünya Kupası Şampiyonu</p>
+                <h3>{championName || "Henüz seçilmedi"}</h3>
+                <p className="champion-card__copy">
+                  {championName
+                    ? `${championName}, final galibi olarak state'e işlendi ve bu kartta net biçimde gösteriliyor.`
+                    : "Final maçında bir takım seçtiğinde şampiyon burada büyük biçimde görünecek."}
+                </p>
               </article>
             </div>
           </div>
         </section>
       </div>
+      <div className="site-signature">Efehan Büyükbayrak</div>
     </main>
   );
 }
